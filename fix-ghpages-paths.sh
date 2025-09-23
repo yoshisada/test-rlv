@@ -26,9 +26,8 @@ for f in "${FILES[@]}"; do
   perl -0777 -i -pe 's#url\(\s*/(fonts/)#url(./$1#g' "$f"
 
   # 4) Shader fetch normalizations - fix the template literal pattern causing double paths
-  # Pattern: fetch(`./shaders/${filename}`) where filename gets prepended with "shaders/"
-  perl -0777 -i -pe 's#fetch\(\s*`\./shaders/\$\{([^}]+)\}`#fetch(`./shaders/\${$1}`)#g' "$f"
-  perl -0777 -i -pe 's#fetch\(\s*`shaders/\$\{([^}]+)\}`#fetch(`./shaders/\${$1}`)#g' "$f"
+  # Fix any extra parentheses that may have been introduced
+  perl -0777 -i -pe 's#fetch\(\s*`\./shaders/\$\{([^}]+)\}`\s*\)#fetch(`./shaders/\${$1}`)#g' "$f"
   # Standard fetch patterns
   perl -0777 -i -pe 's#fetch\(\s*\"shaders/#fetch(\"./shaders/#g' "$f"
   perl -0777 -i -pe "s#fetch\\(\\s*'shaders/#fetch('./shaders/#g" "$f"
