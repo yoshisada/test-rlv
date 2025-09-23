@@ -25,24 +25,19 @@ for f in "${FILES[@]}"; do
   # 3) CSS font urls: url(/fonts/...) → url(./fonts/...)
   perl -0777 -i -pe 's#url\(\s*/(fonts/)#url(./$1#g' "$f"
 
-  # 4) Shader fetch normalizations - fix the template literal pattern causing double paths
-  # Fix any extra parentheses that may have been introduced
-  perl -0777 -i -pe 's#fetch\(\s*`\./shaders/\$\{([^}]+)\}`\s*\)#fetch(`./shaders/\${$1}`)#g' "$f"
-  # Standard fetch patterns
-  perl -0777 -i -pe 's#fetch\(\s*\"shaders/#fetch(\"./shaders/#g' "$f"
-  perl -0777 -i -pe "s#fetch\\(\\s*'shaders/#fetch('./shaders/#g" "$f"
-  # Fix variables that might contain "shaders/" prefix getting doubled up  
+  # 4) Only fix obvious double-path issues that might have been created
   perl -0777 -i -pe 's#\./shaders/shaders/#./shaders/#g' "$f"
   perl -0777 -i -pe 's#shaders/shaders/#shaders/#g' "$f"
 
-  # 5) If bundle used bare shader filenames, prefix them
-  perl -0777 -i -pe 's#(?<![A-Za-z0-9_./-])(fileInstance|nodeSphere|lineRenderer)\.(vert|frag)#./shaders/$1.$2#g' "$f"
-
 done
 
-echo "Verify:"
-grep -RnoE "['\"]/((assets|icons|fonts|models|shaders))/" "$ROOT" | head -100 || true
-grep -RnoE "url\(\s*/fonts/" "$ROOT" | head -100 || true
-grep -RnoE "['\"]/[^'\"()]+\.(png|jpg|jpeg|gif|svg|webp|ico)" "$ROOT" | head -100 || true
-grep -RnoE "shaders/shaders|fetch\(\s*['\"\`]\.?/shaders/" "$ROOT" | head -100 || true
+echo "Verify remaining issues:"
+echo "Root-absolute asset paths:"
+grep -RnoE "['\"]/((assets|icons|fonts|models|shaders))/" "$ROOT" | head -20 || true
+echo "CSS font URLs:"
+grep -RnoE "url\(\s*/fonts/" "$ROOT" | head -20 || true
+echo "Root-absolute images:"
+grep -RnoE "['\"]/[^'\"()]+\.(png|jpg|jpeg|gif|svg|webp|ico)" "$ROOT" | head -20 || true
+echo "Double shaders paths:"
+grep -RnoE "shaders/shaders" "$ROOT" | head -20 || true
 echo "Done."
