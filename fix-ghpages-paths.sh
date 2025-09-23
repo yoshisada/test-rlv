@@ -1,50 +1,46 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
 
-# Rewrite root-absolute asset paths to relative and fix shader filenames
-
-ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
-
+ROOT="$(cd "$(dirname "$0")" && pwd)"
 shopt -s nullglob
 FILES=(
-  "$ROOT_DIR/index.html"
-  "$ROOT_DIR/404.html"
-  "$ROOT_DIR/assets/index-"*.js
+  "$ROOT/index.html"
+  "$ROOT/404.html"
+  "$ROOT/assets/index-"*.js
+  "$ROOT/assets/index-"*.css
 )
 
-echo "Fixing paths in ${#FILES[@]} files..."
-
+echo "Fixing ${#FILES[@]} files..."
 for f in "${FILES[@]}"; do
   [ -f "$f" ] || continue
 
-  # Count before
-  before_root=$(grep -Eo "['\"]/(icons|models|shaders|assets|fonts)/" "$f" | wc -l | tr -d ' ' || true)
-  before_shaders=$(grep -Eo "(^|[^A-Za-z0-9_./-])(fileInstance|nodeSphere|lineRenderer)\.(vert|frag)" "$f" | wc -l | tr -d ' ' || true)
+  # 1) Core asset dirs: "/assets|/icons|/fonts|/models|/shaders" → "./..."
+  perl -0777 -i -pe 's#\"/(assets|icons|fonts|models|shaders)/#\"./$1/#g' "$f"
+  perl -0777 -i -pe 's#\x27/(assets|icons|fonts|models|shaders)/#\x27./$1/#g' "$f"
 
-  # Replace quoted root-absolute to relative (handle ' and " separately to avoid regex class issues)
-  perl -0777 -i -pe 's#\"/(icons|models|shaders|assets|fonts)/#\"./$1/#g' "$f"
-  perl -0777 -i -pe 's#\x27/(icons|models|shaders|assets|fonts)/#\x27./$1/#g' "$f"
+  # 2) Top-level images: "/foo.png" → "./foo.png"
+  perl -0777 -i -pe 's#\"/([A-Za-z0-9._-]+\.(png|jpg|jpeg|gif|svg|webp|ico))#\"./$1#g' "$f"
+  perl -0777 -i -pe 's#\x27/([A-Za-z0-9._-]+\.(png|jpg|jpeg|gif|svg|webp|ico))#\x27./$1#g' "$f"
 
-  # Replace bare shader filenames to ./shaders/<name>.<ext>
+  # 3) CSS font urls: url(/fonts/...) → url(./fonts/...)
+  perl -0777 -i -pe 's#url\(\s*/(fonts/)#url(./$1#g' "$f"
+
+  # 4) Shader fetch normalizations:
+  #    - ensure "./shaders/..." (if code used "shaders/...") 
+  perl -0777 -i -pe 's#fetch\(\s*\"shaders/#fetch(\"./shaders/#g' "$f"
+  perl -0777 -i -pe "s#fetch\\(\\s*'shaders/#fetch('./shaders/#g" "$f"
+  perl -0777 -i -pe 's#fetch\(\s*`/?shaders/#fetch(`./shaders/#g' "$f"
+  #    - collapse accidental duplicates like "shaders/shaders/"
+  perl -0777 -i -pe 's#shaders/\.?/shaders/#shaders/#g' "$f"
+
+  # 5) If bundle used bare shader filenames, prefix them
   perl -0777 -i -pe 's#(?<![A-Za-z0-9_./-])(fileInstance|nodeSphere|lineRenderer)\.(vert|frag)#./shaders/$1.$2#g' "$f"
 
-  # Count after
-  after_root=$(grep -Eo "['\"]/(icons|models|shaders|assets|fonts)/" "$f" | wc -l | tr -d ' ' || true)
-  after_shaders=$(grep -Eo "(^|[^A-Za-z0-9_./-])(fileInstance|nodeSphere|lineRenderer)\.(vert|frag)" "$f" | wc -l | tr -d ' ' || true)
-
-  echo "$(basename "$f"): root-absolute ${before_root} -> ${after_root}; shader names ${before_shaders} -> ${after_shaders}"
 done
 
-echo
-echo "Remaining root-absolute asset refs (should be none):"
-grep -nE "['\"]/(icons|models|shaders|assets|fonts)/" "${FILES[@]}" || true
-
-echo
-echo "Remaining bare shader filenames (should be none):"
-grep -nE "(^|[^A-Za-z0-9_./-])(fileInstance|nodeSphere|lineRenderer)\.(vert|frag)" "${FILES[@]}" || true
-
-echo
+echo "Verify:"
+grep -RnoE "['\"]/((assets|icons|fonts|models|shaders))/" "$ROOT" | head -100 || true
+grep -RnoE "url\(\s*/fonts/" "$ROOT" | head -100 || true
+grep -RnoE "['\"]/[^'\"()]+\.(png|jpg|jpeg|gif|svg|webp|ico)" "$ROOT" | head -100 || true
+grep -RnoE "shaders/shaders|fetch\(\s*['\"\`]\.?/shaders/" "$ROOT" | head -100 || true
 echo "Done."
-
-
