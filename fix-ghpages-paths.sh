@@ -17,10 +17,12 @@ for f in "${FILES[@]}"; do
   # 1) Core asset dirs: "/assets|/icons|/fonts|/models|/shaders" → "./..."
   perl -0777 -i -pe 's#\"/(assets|icons|fonts|models|shaders)/#\"./$1/#g' "$f"
   perl -0777 -i -pe 's#\x27/(assets|icons|fonts|models|shaders)/#\x27./$1/#g' "$f"
+  perl -0777 -i -pe 's#\x60/(assets|icons|fonts|models|shaders)/#\x60./$1/#g' "$f"
 
   # 2) Top-level images: "/foo.png" → "./foo.png"
   perl -0777 -i -pe 's#\"/([A-Za-z0-9._-]+\.(png|jpg|jpeg|gif|svg|webp|ico))#\"./$1#g' "$f"
   perl -0777 -i -pe 's#\x27/([A-Za-z0-9._-]+\.(png|jpg|jpeg|gif|svg|webp|ico))#\x27./$1#g' "$f"
+  perl -0777 -i -pe 's#\x60/([A-Za-z0-9._-]+\.(png|jpg|jpeg|gif|svg|webp|ico))#\x60./$1#g' "$f"
 
   # 3) CSS font urls: url(/fonts/...) → url(./fonts/...)
   perl -0777 -i -pe 's#url\(\s*/(fonts/)#url(./$1#g' "$f"
