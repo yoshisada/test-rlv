@@ -25,7 +25,11 @@ for f in "${FILES[@]}"; do
   # 3) CSS font urls: url(/fonts/...) → url(./fonts/...)
   perl -0777 -i -pe 's#url\(\s*/(fonts/)#url(./$1#g' "$f"
 
-  # 4) Only fix obvious double-path issues that might have been created
+  # 4) Fix history.pushState and similar navigation to use relative paths
+  perl -0777 -i -pe 's#pushState\(([^)]*),\s*(['\''"])(/)\2#pushState($1,$2./$2#g' "$f"
+  perl -0777 -i -pe 's#replaceState\(([^)]*),\s*(['\''"])(/)\2#replaceState($1,$2./$2#g' "$f"
+
+  # 5) Only fix obvious double-path issues that might have been created
   perl -0777 -i -pe 's#\./shaders/shaders/#./shaders/#g' "$f"
   perl -0777 -i -pe 's#shaders/shaders/#shaders/#g' "$f"
 
@@ -40,4 +44,6 @@ echo "Root-absolute images:"
 grep -RnoE "['\"]/[^'\"()]+\.(png|jpg|jpeg|gif|svg|webp|ico)" "$ROOT" | head -20 || true
 echo "Double shaders paths:"
 grep -RnoE "shaders/shaders" "$ROOT" | head -20 || true
+echo "History pushState/replaceState with root paths:"
+grep -RnoE "(pushState|replaceState)\([^)]*['\"]\/['\"]" "$ROOT" | head -20 || true
 echo "Done."
